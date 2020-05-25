@@ -32,7 +32,7 @@ class Camera(BaseCamera):
             face_encoding = face_recognition.face_encodings(image)[0] 
             known_face_encodings.append(face_encoding)
             known_face_names.append(splitext(basename(filefullname))[0])
-            
+
         print(known_face_names)
 
         # Initialize some variables
