@@ -3,6 +3,8 @@ import cv2
 from base_camera import BaseCamera
 import face_recognition
 import numpy as np
+import glob
+from os.path import basename, splitext
 
 class Camera(BaseCamera):
     video_source = "0"
@@ -21,24 +23,17 @@ class Camera(BaseCamera):
         camera = cv2.VideoCapture(Camera.video_source)
         if not camera.isOpened():
             raise RuntimeError('Could not start camera.')
-
-        # Load a sample picture and learn how to recognize it.
-        obama_image = face_recognition.load_image_file("obama.jpg")
-        obama_face_encoding = face_recognition.face_encodings(obama_image)[0]
-
-        # Load a second sample picture and learn how to recognize it.
-        biden_image = face_recognition.load_image_file("biden.jpg")
-        biden_face_encoding = face_recognition.face_encodings(biden_image)[0]
-
-        # Create arrays of known face encodings and their names
-        known_face_encodings = [
-            obama_face_encoding,
-            biden_face_encoding
-        ]
-        known_face_names = [
-            "Barack Obama",
-            "Joe Biden"
-        ]
+    
+        known_face_encodings = []
+        known_face_names = []
+        filefullnames = [filefullname for filefullname in glob.glob("./images/*.jpg", recursive=False)]
+        for filefullname in filefullnames:
+            image = face_recognition.load_image_file(filefullname)
+            face_encoding = face_recognition.face_encodings(image)[0] 
+            known_face_encodings.append(face_encoding)
+            known_face_names.append(splitext(basename(filefullname))[0])
+            
+        print(known_face_names)
 
         # Initialize some variables
         face_locations = []
