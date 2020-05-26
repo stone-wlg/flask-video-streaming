@@ -4,6 +4,7 @@ from base_camera import BaseCamera
 import face_recognition
 import numpy as np
 import glob
+import time
 from os.path import basename, splitext
 
 class Camera(BaseCamera):
@@ -49,6 +50,7 @@ class Camera(BaseCamera):
             ret, frame = camera.read()
             if not ret:
                 print("Could not read camera.")
+                time.sleep(3)
                 continue
 
             # Resize frame of video to 1/4 size for faster face recognition processing
