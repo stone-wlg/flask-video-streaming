@@ -43,8 +43,7 @@ class Camera(BaseCamera):
 
         while True:
             if not camera.isOpened():
-                print("Could not start camera.")
-                continue
+                raise RuntimeError('Could not start camera.')
 
             # Grab a single frame of video
             ret, frame = camera.read()
