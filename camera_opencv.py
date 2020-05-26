@@ -42,8 +42,15 @@ class Camera(BaseCamera):
         process_this_frame = True
 
         while True:
+            if not camera.isOpened():
+                print("Could not start camera.")
+                continue
+
             # Grab a single frame of video
             ret, frame = camera.read()
+            if not ret:
+                print("Could not read camera.")
+                continue
 
             # Resize frame of video to 1/4 size for faster face recognition processing
             small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
