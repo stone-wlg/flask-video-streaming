@@ -6,6 +6,7 @@ import numpy as np
 import glob
 import time
 from os.path import basename, splitext
+from base64 import b64decode, b64encode
 
 class Camera(BaseCamera):
     video_source = "0"
@@ -20,11 +21,17 @@ class Camera(BaseCamera):
         Camera.video_source = source
 
     @staticmethod
+    def get_image_encode_string(filename):
+        with open(filename, "rb") as image: 
+            return b64encode(image.read())       
+
+    @staticmethod
     def frames():
         camera = cv2.VideoCapture(Camera.video_source)
         if not camera.isOpened():
-            raise RuntimeError('Could not start camera.')
-    
+            print('Could not start camera.')
+            return
+
         known_face_encodings = []
         known_face_names = []
         filefullnames = [filefullname for filefullname in glob.glob("./images/*.jpg", recursive=False)]
@@ -43,15 +50,12 @@ class Camera(BaseCamera):
         process_this_frame = True
 
         while True:
-            if not camera.isOpened():
-                raise RuntimeError('Could not start camera.')
-
             # Grab a single frame of video
             ret, frame = camera.read()
             if not ret:
                 print("Could not read camera.")
                 time.sleep(3)
-                continue
+                yield "data:image/jpg;base64,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"
 
             # Resize frame of video to 1/4 size for faster face recognition processing
             small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
