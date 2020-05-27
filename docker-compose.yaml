@@ -9,8 +9,8 @@ services:
     environment: 
       CAMERA: "opencv"
       OPENCV_CAMERA_SOURCE: "http://192.168.1.100:8080/?action=stream?dummy=param.mjpg"
-    # volumes: 
-    #   - "./images:/flask-video-streaming/images"
+    volumes: 
+      - "./images:/flask-video-streaming/images"
     restart: "unless-stopped"
     networks:
       - "flask-video-streaming-net"
