@@ -34,16 +34,11 @@ class Camera(BaseCamera):
 
     @staticmethod
     def frames():
-        camera = cv2.VideoCapture(Camera.video_source)
-        if not camera.isOpened():
-            print('Could not start camera.')
-            return
-
         # print("Training KNN classifier...")
         # classifier = train("images/train", model_save_path="trained_knn_model.clf", n_neighbors=2)
         # print("Training complete!")
         # process one frame in every 30 frames for speed
-        process_this_frame = 29
+        process_this_frame = 59
         print('Setting cameras up...')
         cap = cv2.VideoCapture(Camera.video_source)
         while 1 > 0:
@@ -57,13 +52,56 @@ class Camera(BaseCamera):
                 # Image resizing for more stable streaming
                 img = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
                 process_this_frame = process_this_frame + 1
-                if process_this_frame % 30 == 0:
+                if process_this_frame % 60 == 0:
                     predictions = predict(img, model_path="trained_knn_model.clf")
                 frame = show_prediction_labels_on_image(frame, predictions)
- 
+
             # encode as a jpeg image and return it
             yield cv2.imencode('.jpg', frame)[1].tobytes()
 
+
+valid_faces = []
+def check_valid_faces(name, frame):
+    if name == "unknown":
+        return 
+
+    has_valid_face = False
+    tmp_valid_faces = valid_faces.copy()
+    for face in tmp_valid_faces:
+      if (datetime.datetime.now() - face["timeout"]).total_seconds() >= 10:
+          valid_faces.remove(face)
+          # todo
+          # mqtt send name
+          # save frame
+
+      if face["name"] == name:
+          has_valid_face = True
+          break
+      
+    if not has_valid_face:
+      valid_faces.append({"name": name, "timeout": datetime.datetime.now()})
+
+invalid_faces = []
+def check_invalid_faces(predictions, frame):
+    for name, _ in predictions:
+        if name != "unknown":
+            return 
+            
+        has_invalid_face = False
+        tmp_invalid_faces = invalid_faces.copy()
+        for face in tmp_invalid_faces:
+            if (datetime.datetime.now() - face["timeout"]).total_seconds() >= 10:
+                invalid_faces.remove(face)
+                # todo
+                # mqtt send name
+                # save frame
+
+            if face["name"] == name:
+                has_valid_face = True
+                break
+            
+        if not has_invalid_face and len(invalid_faces) < 100:
+            invalid_faces.append({"name": name, "timeout": datetime.datetime.now()})      
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'JPG'}
 
