@@ -55,5 +55,22 @@ def top(limit):
     """ % limit)
     return jsonify(data)
 
+@app.route('/total/<int:limit>')
+def total(limit):
+    data = dao.query("""
+        SELECT json_build_object(
+            'ts', htc.bucket, 
+            'total_cnt', htc.cnt,
+            'total_invalid_cnt', COALESCE(hti.cnt, 0),
+            'total_valid_cnt', (htc.cnt - COALESCE(hti.cnt, 0))
+            )::jsonb
+        FROM history_total_count_in_5mins htc
+        LEFT JOIN history_total_invalid_count_in_5mins hti
+        ON hti.bucket = htc.bucket
+        ORDER BY htc.bucket DESC
+        LIMIT %s;   
+    """ % limit)
+    return jsonify(data)
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', threaded=True) #, ssl_context=('./certs/server.pem', './certs/server.key')

@@ -81,14 +81,35 @@ SELECT ADD_COMPRESS_CHUNKS_POLICY('history', INTERVAL '1 day');
 
 -- INSERT INTO public.history (pinyin, image) VALUES ('WangLiang', '/images/WangLiang.jpg');
 
--- DROP VIEW IF EXISTS history_last_in_5mins CASCADE;
--- CREATE VIEW history_last_in_5mins
--- WITH (timescaledb.continuous, 
--- 			timescaledb.refresh_interval = '10 minute') 
--- AS
--- SELECT time_bucket(INTERVAL '5 minute', ts) AS bucket,
--- 			 pinyin,
---        COUNT(pinyin) AS total_user_cnt,
---        CASE WHEN pinyin = 'unknown' THEN COUNT(pinyin) END AS total_invalid_cnt
--- FROM history	
--- GROUP BY pinyin, bucket;
+--DROP VIEW IF EXISTS public.history_total_count_in_5mins CASCADE;
+CREATE VIEW public.history_total_count_in_5mins
+WITH (timescaledb.continuous, 
+			timescaledb.refresh_interval = '10 minute') 
+AS
+SELECT time_bucket(INTERVAL '5 minute', ts) AS bucket,
+       COUNT(1) AS cnt
+FROM history	
+GROUP BY bucket;
+--SELECT * FROM history_total_count_in_5mins ORDER BY bucket DESC;
+
+--DROP VIEW IF EXISTS public.history_total_invalid_count_in_5mins CASCADE;
+CREATE VIEW public.history_total_invalid_count_in_5mins
+WITH (timescaledb.continuous, 
+			timescaledb.refresh_interval = '10 minute') 
+AS
+SELECT time_bucket(INTERVAL '5 minute', ts) AS bucket,
+       COUNT(1) AS cnt
+FROM history	
+WHERE pinyin = 'unknown'
+GROUP BY pinyin, bucket;
+--SELECT * FROM history_total_invalid_count_in_5mins;
+
+-- SELECT htc.bucket, 
+-- 			 htc.cnt AS total_cnt,
+-- 			 COALESCE(hti.cnt, 0) AS total_invalid_cnt,
+-- 			 (htc.cnt - COALESCE(hti.cnt, 0)) AS total_valid_cnt
+-- FROM history_total_count_in_5mins htc
+-- LEFT JOIN history_total_invalid_count_in_5mins hti
+-- ON hti.bucket = htc.bucket
+-- ORDER BY htc.bucket DESC
+-- LIMIT 10;
