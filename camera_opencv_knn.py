@@ -15,6 +15,7 @@ from face_recognition.face_recognition_cli import image_files_in_folder
 from PIL import Image, ImageDraw
 from sklearn import neighbors
 import datetime
+import dao
 
 from base_camera import BaseCamera
 
@@ -43,7 +44,9 @@ class Camera(BaseCamera):
         cap = cv2.VideoCapture(Camera.video_source)
         while 1 > 0:
             if not cap.isOpened():
+                cap = cv2.VideoCapture(Camera.video_source)
                 print('Could not open camera.')
+                time.sleep(3)
                 return        
 
             ret, frame = cap.read()
@@ -55,8 +58,9 @@ class Camera(BaseCamera):
                 if process_this_frame % 60 == 0:
                     predictions = predict(img, model_path="trained_knn_model.clf")
                 frame = show_prediction_labels_on_image(frame, predictions)
-                check_valid_faces(predictions, frame)
-                check_invalid_faces(predictions, frame)
+                saved_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+                check_valid_faces(predictions, saved_frame)
+                check_invalid_faces(predictions, saved_frame)
 
             # encode as a jpeg image and return it
             yield cv2.imencode('.jpg', frame)[1].tobytes()
@@ -64,6 +68,18 @@ class Camera(BaseCamera):
 
 valid_faces = []
 def check_valid_faces(predictions, frame):
+    global valid_faces
+
+    tmp_valid_faces = valid_faces.copy()
+    for face in tmp_valid_faces:
+        if (datetime.datetime.now() - face["timeout"]).total_seconds() >= 10:
+            print("remove valid face: " + face["name"])
+            valid_faces.remove(face)
+            # todo
+            # mqtt send name
+            dao.insert("INSERT INTO public.history (pinyin, image) VALUES ('" + face["name"] + "', '/images/" + face["name"] + ".jpg')")
+            # cv2.imwrite("./images/valid/" + face["name"] + ".jpg", face["frame"])
+
     for name, _ in predictions:
         if name == "unknown":
             return 
@@ -71,39 +87,43 @@ def check_valid_faces(predictions, frame):
         has_valid_face = False
         tmp_valid_faces = valid_faces.copy()
         for face in tmp_valid_faces:
-            if (datetime.datetime.now() - face["timeout"]).total_seconds() >= 10:
-                print("remove valid face: " + name)
-                valid_faces.remove(face)
-                # todo
-                # mqtt send name
-
             if face["name"] == name:
                 has_valid_face = True
                 break
         
-        if not has_valid_face and len(valid_faces) < 10:
+        if not has_valid_face and len(valid_faces) < 100:
             valid_faces.append({"name": name, "timeout": datetime.datetime.now()})
+
     print(valid_faces)
 
 invalid_faces = []
+invalid_faces_timeout = datetime.datetime.now()
 def check_invalid_faces(predictions, frame):
+    global invalid_faces
+    global invalid_faces_timeout
+
+    tmp_invalid_faces = invalid_faces.copy()
+    for face in tmp_invalid_faces:
+        if (datetime.datetime.now() - face["timeout"]).total_seconds() >= 10:
+            print("remove invalid face: " + face["name"])
+            invalid_faces.remove(face)
+            # todo
+            dao.insert("INSERT INTO public.history (pinyin, image) VALUES ('unknown', '/images/invalid/" + face["name"] + ".jpg')")
+            cv2.imwrite("./images/invalid/" + face["name"] + ".jpg", face["frame"])
+
+    if (datetime.datetime.now() - invalid_faces_timeout).total_seconds() <= 3:
+        print("invalid_faces_timeout return")
+        return
+
     for name, _ in predictions:
         if name != "unknown":
             return 
         
-        invalid_username = "unknown-" + str(datetime.datetime.now().timestamp())
-        has_invalid_face = False
-        tmp_invalid_faces = invalid_faces.copy()
-        for face in tmp_invalid_faces:
-            if (datetime.datetime.now() - face["timeout"]).total_seconds() >= 10:
-                print("remove invalid face: " + face["name"])
-                invalid_faces.remove(face)
-                # todo
-                # mqtt send name
-                # save frame: cv2.imwrite("./images/unknown/" + invalid_username + ".jpg", frame)
-            
-        if not has_invalid_face and len(invalid_faces) < 10:
-            invalid_faces.append({"name": invalid_username, "timeout": datetime.datetime.now()})      
+        invalid_faces_timeout = datetime.datetime.now()
+
+        if len(invalid_faces) < 10:
+            invalid_username = "unknown-" + str(datetime.datetime.now().timestamp())
+            invalid_faces.append({"name": invalid_username, "frame": frame, "timeout": datetime.datetime.now()})      
 
     print(invalid_faces)
 

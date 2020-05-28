@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 from importlib import import_module
 import os
-from flask import Flask, render_template, Response
+import dao
+from flask import Flask, render_template, Response, jsonify
 
 # import camera driver
 if os.environ.get('CAMERA'):
@@ -35,6 +36,24 @@ def video_feed():
     return Response(gen(Camera()),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/top/<int:limit>')
+def top(limit):
+    data = dao.query("""
+        SELECT json_build_object(
+            'id', u.id,
+            'name', u.name,
+            'pinyin', u.pinyin,
+            'department', u.department,
+            'image', h.image,
+            'ts', h.ts      
+            )::jsonb
+        FROM public.user u
+            INNER JOIN public.history h
+            ON h.pinyin = u.pinyin 
+        ORDER BY h.ts DESC
+        LIMIT %s;     
+    """ % limit)
+    return jsonify(data)
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', threaded=True, ssl_context=('server.pem', 'server.key'))
+    app.run(host='0.0.0.0', threaded=True) #, ssl_context=('./certs/server.pem', './certs/server.key')
